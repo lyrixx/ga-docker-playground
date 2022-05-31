@@ -1,0 +1,100 @@
+name: CI
+
+env:
+    REGISTRY: ghcr.io
+
+'on':
+    push:
+        branches:
+            - main
+        tags:
+            - v*
+    pull_request: null
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        permissions:
+            packages: write
+            contents: read
+        outputs:
+          app_1_version: ${{ fromJSON(steps.meta_app_1.outputs.json).labels['org.opencontainers.image.version'] }}
+          app_2_version: ${{ fromJSON(steps.meta_app_2.outputs.json).labels['org.opencontainers.image.version'] }}
+        steps:
+            - name: Checkout the code
+              uses: actions/checkout@v2
+
+            - name: Log in to the Container registry
+              uses: docker/login-action@v2
+              with:
+                registry: ${{ env.REGISTRY }}
+                username: ${{ github.actor }}
+                password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Extract metadata for app_1
+              id: meta_app_1
+              uses: docker/metadata-action@v4
+              with:
+                images: ${{ env.REGISTRY }}/lyrixx/ga-docker-playground-app-1
+
+            - name: Extract metadata for app_2
+              id: meta_app_2
+              uses: docker/metadata-action@v4
+              with:
+                images: ${{ env.REGISTRY }}/lyrixx/ga-docker-playground-app-2
+
+            - name: Change index.html
+              run: echo ${{ github.ref }} > index.html
+
+            - name: Build and push Docker image (app 1)
+              uses: docker/build-push-action@v3
+              with:
+                context: .
+                target: app_1
+                tags: ${{ steps.meta_app_1.outputs.tags }}
+                labels: ${{ steps.meta_app_1.outputs.labels }}
+                push: true
+
+            - name: Build and push Docker image (app 2)
+              uses: docker/build-push-action@v3
+              with:
+                context: .
+                target: app_2
+                tags: ${{ steps.meta_app_2.outputs.tags }}
+                labels: ${{ steps.meta_app_2.outputs.labels }}
+                push: true
+
+    test:
+        runs-on: ubuntu-latest
+        permissions:
+            packages: read
+            contents: read
+        needs:
+            - build
+        env:
+            APP_1_VERSION: "${{ needs.build.outputs.app_1_version }}"
+            APP_2_VERSION: "${{ needs.build.outputs.app_2_version }}"
+        steps:
+            - name: Checkout the code
+              uses: actions/checkout@v2
+
+            - name: Log in to the Container registry
+              uses: docker/login-action@v2
+              with:
+                registry: ${{ env.REGISTRY }}
+                username: ${{ github.actor }}
+                password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Pull dependencies
+              run: docker-compose pull
+
+            - name: Start infrastructure
+              run: docker-compose up --no-build -d
+
+            - name: Test
+              run: |
+                echo --------
+                curl -sq 127.0.0.1:8080
+                echo --------
+                curl -sq 127.0.0.1:8081
+                echo --------

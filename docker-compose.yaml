@@ -1,0 +1,18 @@
+services:
+    app_1:
+        image: "ghcr.io/lyrixx/ga-docker-playground-app-1:${APP_1_VERSION:-main}"
+        build:
+          context: .
+          dockerfile: Dockerfile
+          target: app_1
+        ports:
+          - 8080:80
+
+    app_2:
+        image: "ghcr.io/lyrixx/ga-docker-playground-app-2:${APP_2_VERSION:-main}"
+        build:
+          context: .
+          dockerfile: Dockerfile
+          target: app_2
+        ports:
+          - 8081:80
