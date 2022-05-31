@@ -5,7 +5,7 @@ images and push them to GitHub Container Registry.
 
 ## Project description
 
-There are two applications. They are juste Nginx container, with a static `index.html`.
+There are two applications. They are just Nginx container, with a static HTML file.
 
 * `app_1` uses `index.html` from this repository.
 * `app_2` uses `index2.html` from this repository.
